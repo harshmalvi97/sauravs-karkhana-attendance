@@ -10,327 +10,499 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 
 <style>
-body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; }
-
-header {
-  background:#198754;
-  color:white;
-  padding:15px;
-  text-align:center;
-}
-
-.tabs {
-  display:flex;
-  background:#fff;
-  border-bottom:1px solid #ccc;
-}
-
-.tabs button {
-  flex:1;
-  padding:12px;
-  border:none;
-  background:#f8f9fa;
-  font-size:14px;
-  cursor:pointer;
-}
-
-.tabs button.active {
-  background:#0d6efd;
-  color:white;
-  font-weight:bold;
-}
-
-.container {
-  padding:15px;
-  display:none;
-}
-
-.container.active { display:block; }
-
-table {
-  width:100%;
-  border-collapse:collapse;
-  margin-top:10px;
-}
-
-th,td {
-  border:1px solid #ddd;
-  padding:8px;
-  text-align:center;
-  font-size:14px;
-}
-
-th { background:#0d6efd; color:white; }
-
-input,select,button {
-  padding:6px;
-  font-size:14px;
-}
-
-button {
-  border:none;
-  border-radius:4px;
-  cursor:pointer;
-}
-
-.btn-add { background:#198754; color:white; }
-.btn-edit { background:#ffc107; }
-.btn-delete { background:#dc3545; color:white; }
-.btn-save { background:#198754; color:white; }
-.btn-excel { background:#0dcaf0; }
-.btn-pdf { background:#dc3545; color:white; }
-
-.actions { margin-top:15px; display:flex; gap:10px; flex-wrap:wrap; }
-
-.summary { margin-top:10px; font-weight:bold; }
-
-@media(max-width:768px){
-  th,td { font-size:12px; }
-}
+body{font-family:Arial;background:#f4f6f8;margin:0}
+header{background:#198754;color:#fff;padding:15px;text-align:center}
+.tabs{display:flex;background:#fff}
+.tabs button{flex:1;padding:12px;border:none;background:#f8f9fa;cursor:pointer}
+.tabs button.active{background:#0d6efd;color:#fff;font-weight:bold}
+.container{display:none;padding:15px}
+.container.active{display:block}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{border:1px solid #ddd;padding:8px;text-align:center}
+th{background:#0d6efd;color:#fff}
+input,select,button{padding:6px}
+button{border:none;border-radius:4px;cursor:pointer}
+.btn-add{background:#198754;color:#fff}
+.btn-save{background:#198754;color:#fff}
+.actions{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}
+.work-box div{display:flex;gap:6px;margin-bottom:6px}
+.summary{font-weight:bold;margin-top:10px}
 </style>
 </head>
 
 <body>
 
 <header>
-  <h1>Saurav's Karkhana</h1>
-  <p>Labour Attendance & Wage System</p>
+<h1>Saurav's Karkhana</h1>
+<p>Labour Attendance & Wage System</p>
 </header>
 
-<!-- TABS -->
 <div class="tabs">
-  <button class="active" onclick="openTab('users',this)">Users</button>
-  <button onclick="openTab('attendance',this)">Attendance</button>
-  <button onclick="openTab('reports',this)">Reports</button>
+<button class="active" onclick="openTab('users',this)">Users</button>
+<button onclick="openTab('attendance',this)">Attendance</button>
+<button onclick="openTab('reports',this)">Reports</button>
 </div>
 
-<!-- USER MANAGEMENT -->
+<!-- USERS -->
 <div id="users" class="container active">
-  <h2>User Management</h2>
-  <input type="text" id="userName" placeholder="Labour Name">
-  <button class="btn-add" onclick="addUser()">Add</button>
-
-  <table>
-    <thead><tr><th>#</th><th>Name</th><th>Action</th></tr></thead>
-    <tbody id="userTable"></tbody>
-  </table>
+<h2>User Management</h2>
+<input id="userName" placeholder="Labour Name">
+<button class="btn-add" onclick="addUser()">Add</button>
+<table>
+<thead><tr><th>#</th><th>Name</th></tr></thead>
+<tbody id="userTable"></tbody>
+</table>
 </div>
 
 <!-- ATTENDANCE -->
 <div id="attendance" class="container">
-  <h2>Attendance — <input type="date" id="attendanceDate"></h2>
+<h2>Attendance — <input type="date" id="attendanceDate"></h2>
 
-  <table id="attendanceTable">
-    <thead>
-      <tr><th>Name</th><th>Work</th><th>Hours</th><th>Wage</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+<table id="attendanceTable">
+<thead>
+<tr><th>Name</th><th>Work (Multiple)</th><th>Total Wage</th></tr>
+</thead>
+<tbody></tbody>
+</table>
 
-  <div class="summary">Total: ₹ <span id="totalWage">0</span></div>
-
-  <div class="actions">
-    <button class="btn-save" onclick="submitAttendance()">Submit Attendance</button>
-  </div>
+<div class="summary">Day Total: ₹ <span id="dayTotal">0</span></div>
+<button class="btn-save" onclick="submitAttendance()">Submit Attendance</button>
 </div>
 
 <!-- REPORTS -->
 <div id="reports" class="container">
-  <h2>Reports</h2>
-
-  From: <input type="date" id="fromDate">
-  To: <input type="date" id="toDate">
-
-  <div class="actions">
-    <button class="btn-excel" onclick="downloadExcel()">Download Excel</button>
-    <button class="btn-pdf" onclick="downloadPDF()">Download PDF</button>
-  </div>
+<h2>Reports</h2>
+From <input type="date" id="fromDate">
+To <input type="date" id="toDate">
+<div class="actions">
+<button onclick="downloadExcel()">Download Excel</button>
+<button onclick="downloadPDF()">Download PDF</button>
+</div>
 </div>
 
 <script>
-const workRates={
- "":0,"1st Kiln":400,"2nd Kiln":400,"Laari":400,
- "3rd Slab Kiln":400,"4th Slab Kiln":400,
- "5th Slab Feeding":333,"6th DC Feeding":400,
- "7th Slab Feeding":350,"8th DC Feeding":400
-};
-
-let users=JSON.parse(localStorage.getItem("users"))||[
- {id:1,name:"Ramesh"},{id:2,name:"Suresh"}
-];
-
-let attendanceData=JSON.parse(localStorage.getItem("attendance"))||[];
-
-attendanceDate.value=new Date().toISOString().split("T")[0];
-
+// ---------------- TABS ----------------
 function openTab(id,btn){
- document.querySelectorAll(".container").forEach(c=>c.classList.remove("active"));
- document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active"));
- document.getElementById(id).classList.add("active");
- btn.classList.add("active");
+ document.querySelectorAll('.container').forEach(c=>c.classList.remove('active'));
+ document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+ btn.classList.add('active');
 }
 
-// USERS
+// ---------------- DATA ----------------
+let users = JSON.parse(localStorage.getItem("users")) || [];
+let attendanceData = JSON.parse(localStorage.getItem("attendance")) || [];
+
+// ✅ FINAL MAIN → SUB WORK STRUCTURE
+const workStructure = {
+ "SLAB KILN": [
+   { name:"SLAB KILN", rate:450 },
+   { name:"SLAB LARI", rate:400 }
+ ],
+ "SLAB FEEDING": [
+   { name:"SLAB FEEDING", rate:333 },
+   { name:"FEEDING LAARI", rate:400 }
+ ],
+ "DC KILN": [
+   { name:"DC KILN", rate:450 },
+   { name:"DC LARI", rate:400 }
+ ],
+ "DC FEEDING": [
+   { name:"DC FEEDING", rate:450 },
+   { name:"DC LAARI", rate:400 }
+ ],
+ "CLEANER": [
+   { name:"SLAB CLEANING", rate:250 },
+   { name:"DC CLEANING", rate:250 }
+ ]
+};
+
+attendanceDate.value = new Date().toISOString().split("T")[0];
+
+// ---------------- USERS ----------------
 function renderUsers(){
  userTable.innerHTML="";
  users.forEach((u,i)=>{
-  userTable.innerHTML+=`
-  <tr>
-   <td>${i+1}</td>
-   <td>${u.name}</td>
-   <td>
-    <button class="btn-edit" onclick="editUser(${u.id})">Edit</button>
-    <button class="btn-delete" onclick="deleteUser(${u.id})">Delete</button>
-   </td>
-  </tr>`;
+  userTable.innerHTML += `<tr><td>${i+1}</td><td>${u.name}</td></tr>`;
  });
  renderAttendance();
 }
-
 function addUser(){
  if(!userName.value) return;
  users.push({id:Date.now(),name:userName.value});
  userName.value="";
- saveUsers();
-}
-function editUser(id){
- const u=users.find(x=>x.id===id);
- const n=prompt("Edit name",u.name);
- if(n){u.name=n;saveUsers();}
-}
-function deleteUser(id){
- if(confirm("Delete?")){
-  users=users.filter(u=>u.id!==id);
-  saveUsers();
- }
-}
-function saveUsers(){
  localStorage.setItem("users",JSON.stringify(users));
  renderUsers();
 }
 
-// ATTENDANCE
+// ---------------- ATTENDANCE ----------------
 function renderAttendance(){
- attendanceTable.querySelector("tbody").innerHTML="";
+ const tb = attendanceTable.querySelector("tbody");
+ tb.innerHTML="";
  users.forEach(u=>{
-  attendanceTable.querySelector("tbody").innerHTML+=`
-  <tr>
-   <td>${u.name}</td>
-   <td><select onchange="calc(this)">
-    ${Object.keys(workRates).map(w=>`<option>${w}</option>`).join("")}
-   </select></td>
-   <td><select onchange="calc(this)">
-    ${Array.from({length:24},(_,i)=>`<option>${i+1}</option>`).join("")}
-   </select></td>
-   <td class="wage">0</td>
-  </tr>`;
+  tb.innerHTML += `
+   <tr>
+    <td>${u.name}</td>
+    <td>
+      <div class="work-box"></div>
+      <button onclick="addWorkRow(this)">+ Add Work</button>
+    </td>
+    <td class="wage">0</td>
+   </tr>`;
  });
 }
 
-function calc(el){
- const r=el.closest("tr");
- const w=r.children[1].children[0].value;
- const h=r.children[2].children[0].value;
- r.querySelector(".wage").innerText=(workRates[w]||0)*h;
- total();
+function addWorkRow(btn){
+ const box = btn.previousElementSibling;
+ const div = document.createElement("div");
+
+ div.innerHTML = `
+  <select onchange="loadSubWorks(this)">
+    <option selected disabled>Main Section</option>
+    ${Object.keys(workStructure).map(m=>`<option>${m}</option>`).join("")}
+  </select>
+
+  <select onchange="calcPerson(this)">
+    <option selected disabled>Sub Section</option>
+  </select>
+
+  <select onchange="calcPerson(this)">
+    <option selected disabled>Hours</option>
+    ${Array.from({length:24},(_,i)=>`<option>${i+1}</option>`).join("")}
+  </select>
+
+  <button onclick="removeWorkRow(this)">❌</button>
+ `;
+ box.appendChild(div);
 }
-function total(){
+
+function loadSubWorks(mainSelect){
+ const sub = mainSelect.nextElementSibling;
+ sub.innerHTML = `<option selected disabled>Sub Section</option>`;
+
+ workStructure[mainSelect.value].forEach(w=>{
+  const o=document.createElement("option");
+  o.value=w.name;
+  o.textContent=w.name;
+  o.dataset.rate=w.rate;
+  sub.appendChild(o);
+ });
+}
+
+function removeWorkRow(btn){
+ const row = btn.closest("tr");
+ btn.parentElement.remove();
+ calcRowTotal(row);
+}
+
+function calcPerson(el){
+ calcRowTotal(el.closest("tr"));
+}
+
+function calcRowTotal(row){
+ let total=0;
+ row.querySelectorAll(".work-box div").forEach(d=>{
+  const sub=d.children[1], hrs=d.children[2];
+  if(!sub.value||!hrs.value) return;
+  total += sub.selectedOptions[0].dataset.rate * hrs.value;
+ });
+ row.querySelector(".wage").innerText=total;
+ calcDay();
+}
+
+function calcDay(){
  let t=0;
  document.querySelectorAll(".wage").forEach(w=>t+=+w.innerText);
- totalWage.innerText=t;
+ dayTotal.innerText=t;
 }
 
+// ---------------- SUBMIT ----------------
 function submitAttendance(){
- const d=attendanceDate.value;
+ const date=attendanceDate.value;
  const data=[];
+
  document.querySelectorAll("#attendanceTable tbody tr").forEach(r=>{
-  data.push({
-   name:r.children[0].innerText,
-   work:r.children[1].children[0].value,
-   hours:r.children[2].children[0].value,
-   wage:r.children[3].innerText
+  const works=[];
+  r.querySelectorAll(".work-box div").forEach(d=>{
+   const sub=d.children[1], hrs=d.children[2];
+   if(!sub.value||!hrs.value) return;
+   const main = d.children[0];
+   works.push({
+    main: main.value, 
+    work:sub.value,
+    hours:+hrs.value,
+    rate:+sub.selectedOptions[0].dataset.rate,
+    wage:+hrs.value * +sub.selectedOptions[0].dataset.rate
+   });
   });
+  if(works.length) data.push({name:r.children[0].innerText,works});
  });
- const rec={company:"Saurav's Karkhana",date:d,data};
- const i=attendanceData.findIndex(a=>a.date===d);
+
+ const rec={date,data};
+ const i=attendanceData.findIndex(a=>a.date===date);
  i>=0?attendanceData[i]=rec:attendanceData.push(rec);
  localStorage.setItem("attendance",JSON.stringify(attendanceData));
- clearForm();
- alert("Saved for "+d);
+ renderAttendance();
+ dayTotal.innerText=0;
+ alert("Saved");
 }
 
-function clearForm(){
- document.querySelectorAll("#attendanceTable select").forEach(s=>s.selectedIndex=0);
- document.querySelectorAll(".wage").forEach(w=>w.innerText="0");
- totalWage.innerText="0";
+// ---------------- REPORT HELPERS ----------------
+function getReport(){
+ return attendanceData.filter(a=>(!fromDate.value||a.date>=fromDate.value)&&(!toDate.value||a.date<=toDate.value));
 }
 
-// REPORTS
-function getReportData(){
- const f=fromDate.value,t=toDate.value;
- return attendanceData.filter(a=>(!f||a.date>=f)&&(!t||a.date<=t));
-}
-
+// ---------------- EXCEL (SIMPLE VERSION KEPT) ----------------
 function downloadExcel(){
- const rows=[["Date","Name","Work","Hours","Wage"]];
- getReportData().forEach(r=>{
-  r.data.forEach(d=>{
-   rows.push([r.date,d.name,d.work,d.hours,d.wage]);
-  });
+ const report = getReport();
+ if (!Array.isArray(report) || report.length === 0) {
+   alert("No data available");
+   return;
+ }
+
+ const baseDate = new Date(report[0].date);
+ const monthName = baseDate.toLocaleString('en', { month: 'short' });
+ const year = baseDate.getFullYear();
+ const daysInMonth = new Date(year, baseDate.getMonth()+1, 0).getDate();
+
+ // SR | NAME | MAIN | WORK | days | totals
+ const totalCols = 4 + daysInMonth + 3;
+ const rows = [];
+ const merges = [];
+
+ /* ---------- TITLE ---------- */
+ const titleRow = Array(totalCols).fill("");
+ titleRow[0] = `EXXARO MONTHLY ATTENDANCE – ${monthName}-${year}`;
+ rows.push(titleRow);
+ merges.push({ s:{r:0,c:0}, e:{r:0,c:totalCols-1} });
+
+ /* ---------- HEADER ---------- */
+ const header = [
+   "SR NO","NAME","MAIN SECTION","WORK",
+   ...Array.from({length:daysInMonth},(_,i)=>`${i+1}-${monthName}`),
+   "TOTAL HAJRI","WORK PAYMENT","MONTHLY PAYMENT"
+ ];
+
+ let rowIndex = 1;
+ let srNo = 1;
+
+ /* ---------- MAP DATA ---------- */
+ const personMap = {};
+ report.forEach(r=>{
+   if (!Array.isArray(r.data)) return;
+   const day = new Date(r.date).getDate();
+
+   r.data.forEach(p=>{
+     if (!p.name || !Array.isArray(p.works)) return;
+     if (!personMap[p.name]) personMap[p.name] = {};
+
+     p.works.forEach(w=>{
+       if (!personMap[p.name][w.main]) personMap[p.name][w.main] = {};
+       if (!personMap[p.name][w.main][w.work]) {
+         personMap[p.name][w.main][w.work] = { rate:+w.rate, days:{} };
+       }
+       personMap[p.name][w.main][w.work].days[day] = +w.hours;
+     });
+   });
  });
- const wb=XLSX.utils.book_new();
- XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"Report");
- XLSX.writeFile(wb,"Sauravs_Karkhana_Report.xlsx");
+
+ /* ---------- BUILD SHEET ---------- */
+ Object.keys(personMap).forEach((personName, pIdx)=>{
+   rows.push([...header]);
+   rowIndex++;
+
+   const personStart = rowIndex;
+   let monthlyPayment = 0;
+   let firstPersonRow = true;
+
+   Object.keys(personMap[personName]).forEach(main=>{
+     const mainStart = rowIndex;
+
+     Object.keys(personMap[personName][main]).forEach(work=>{
+       const info = personMap[personName][main][work];
+       let totalHours = 0;
+
+       const row = [];
+       row.push(firstPersonRow ? srNo : "");
+       row.push(firstPersonRow ? personName : "");
+       row.push(main);
+       row.push(work);
+
+       for(let d=1; d<=daysInMonth; d++){
+         const hrs = info.days[d] || "";
+         if(hrs) totalHours += hrs;
+         row.push(hrs);
+       }
+
+       const hajri = totalHours / 6;
+       const payment = hajri * info.rate;
+       monthlyPayment += payment;
+
+       row.push(hajri);
+       row.push(payment);
+       row.push("");
+
+       rows.push(row);
+       rowIndex++;
+       firstPersonRow = false;
+     });
+
+     // Merge MAIN SECTION
+     merges.push({
+       s:{r:mainStart,c:2},
+       e:{r:rowIndex-1,c:2}
+     });
+   });
+
+   // Merge NAME + SR + MONTHLY PAYMENT
+   merges.push({ s:{r:personStart,c:0}, e:{r:rowIndex-1,c:0} });
+   merges.push({ s:{r:personStart,c:1}, e:{r:rowIndex-1,c:1} });
+   merges.push({ s:{r:personStart,c:totalCols-1}, e:{r:rowIndex-1,c:totalCols-1} });
+
+   rows[personStart][0] = srNo;
+   rows[personStart][1] = personName;
+   rows[personStart][totalCols-1] = monthlyPayment;
+
+   srNo++;
+
+   if (pIdx < Object.keys(personMap).length - 1) {
+     rows.push(Array(totalCols).fill(""));
+     merges.push({ s:{r:rowIndex,c:0}, e:{r:rowIndex,c:totalCols-1} });
+     rowIndex++;
+   }
+ });
+
+ /* ---------- CREATE FILE ---------- */
+ const wb = XLSX.utils.book_new();
+ const ws = XLSX.utils.aoa_to_sheet(rows);
+
+ ws["!merges"] = merges;
+ ws["!freeze"] = { xSplit: 4, ySplit: 2 };
+ ws["!cols"] = [
+   {wch:6},{wch:18},{wch:18},{wch:22},
+   ...Array(daysInMonth).fill({wch:6}),
+   {wch:12},{wch:14},{wch:18}
+ ];
+
+ XLSX.utils.book_append_sheet(wb, ws, "Monthly Attendance");
+ XLSX.writeFile(wb, `EXXARO_Monthly_Attendance_${monthName}-${year}.xlsx`);
 }
 
+// ---------------- PDF ----------------
 function downloadPDF(){
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+ const { jsPDF } = window.jspdf;
+ const doc = new jsPDF();
 
-    // Sort data by date (ascending)
-    const sortedData = getReportData().sort(
-        (a, b) => new Date(a.date) - new Date(b.date)
-    );
+ doc.setFontSize(14);
+ doc.text("Saurav's Karkhana – Attendance Report", 14, 15);
 
-    doc.setFontSize(14);
-    doc.text("Saurav's Karkhana", 14, 15);
-    doc.setFontSize(10);
-    doc.text("Attendance Report", 14, 22);
+ let y = 25;
+ const report = getReport();
 
-    let y = 30;
+ if (!Array.isArray(report) || report.length === 0) {
+   alert("No data available for selected date range");
+   return;
+ }
 
-    sortedData.forEach(record => {
-        // Date heading
-        doc.setFontSize(11);
-        doc.text(`Date: ${record.date}`, 14, y);
-        y += 5;
+ report.forEach(record => {
+   if (!Array.isArray(record.data)) return;
 
-        const rows = record.data.map(d => [
-            d.name,
-            d.work,
-            d.hours,
-            d.wage
-        ]);
+   // ---- DATE HEADER ----
+   doc.setFontSize(11);
+   doc.text(`Date: ${record.date}`, 14, y);
+   y += 6;
 
-        doc.autoTable({
-            head: [["Name", "Work", "Hours", "Wage (₹)"]],
-            body: rows,
-            startY: y,
-            theme: "grid",
-            styles: { fontSize: 9 }
-        });
+   record.data.forEach(person => {
+     if (!Array.isArray(person.works)) return;
 
-        y = doc.lastAutoTable.finalY + 10;
+     // ---- GROUP BY MAIN SECTION ----
+     const mainMap = {};
+     let monthlyPayment = 0;
 
-        // New page if space is low
-        if (y > 260) {
-            doc.addPage();
-            y = 20;
-        }
-    });
+     person.works.forEach(w => {
+       if (!mainMap[w.main]) mainMap[w.main] = [];
+       mainMap[w.main].push(w);
+       monthlyPayment += w.wage;
+     });
 
-    doc.save("Sauravs_Karkhana_Attendance_Report.pdf");
+     const tableRows = [];
+     let firstRow = true;
+
+     Object.keys(mainMap).forEach(main => {
+       let mainFirst = true;
+
+       mainMap[main].forEach(w => {
+         const hajri = w.hours / 6;
+         const workPayment = hajri * w.rate;
+
+         tableRows.push([
+           firstRow ? person.name : "",
+           mainFirst ? main : "",
+           w.work,
+           w.hours,
+           w.rate,
+           hajri.toFixed(2),
+           workPayment.toFixed(2)
+         ]);
+
+         firstRow = false;
+         mainFirst = false;
+       });
+     });
+
+     // ---- TOTAL ROW ----
+     tableRows.push([
+       "", "", "TOTAL", "", "",
+       "",
+       monthlyPayment.toFixed(2)
+     ]);
+
+     doc.autoTable({
+       head: [[
+         "Name",
+         "Main Section",
+         "Work",
+         "Hours",
+         "Rate",
+         "Total Hajri",
+         "Work Payment"
+       ]],
+       body: tableRows,
+       startY: y,
+       styles: {
+         fontSize: 9,
+         cellPadding: 2
+       },
+       headStyles: {
+         fillColor: [13, 110, 253],
+         textColor: 255
+       },
+       columnStyles: {
+         0: { cellWidth: 30 },
+         1: { cellWidth: 28 },
+         2: { cellWidth: 32 },
+         3: { cellWidth: 15 },
+         4: { cellWidth: 15 },
+         5: { cellWidth: 18 },
+         6: { cellWidth: 22 }
+       }
+     });
+
+     y = doc.lastAutoTable.finalY + 8;
+
+     // ---- PAGE BREAK SAFETY ----
+     if (y > 260) {
+       doc.addPage();
+       y = 20;
+     }
+   });
+
+   y += 6;
+ });
+
+ doc.save("Sauravs_Karkhana_Attendance_Report.pdf");
 }
+
 renderUsers();
 </script>
 
