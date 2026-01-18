@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saurav's Karkhana | Attendance System</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; }
+
+header {
+  background:#0d6efd;
+  color:white;
+  padding:15px;
+  text-align:center;
+}
+
+.tabs {
+  display:flex;
+  background:#fff;
+  border-bottom:1px solid #ccc;
+}
+
+.tabs button {
+  flex:1;
+  padding:12px;
+  border:none;
+  background:#f8f9fa;
+  font-size:14px;
+  cursor:pointer;
+}
+
+.tabs button.active {
+  background:#0d6efd;
+  color:white;
+  font-weight:bold;
+}
+
+.container {
+  padding:15px;
+  display:none;
+}
+
+.container.active { display:block; }
+
+table {
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
+
+th,td {
+  border:1px solid #ddd;
+  padding:8px;
+  text-align:center;
+  font-size:14px;
+}
+
+th { background:#0d6efd; color:white; }
+
+input,select,button {
+  padding:6px;
+  font-size:14px;
+}
+
+button {
+  border:none;
+  border-radius:4px;
+  cursor:pointer;
+}
+
+.btn-add { background:#198754; color:white; }
+.btn-edit { background:#ffc107; }
+.btn-delete { background:#dc3545; color:white; }
+.btn-save { background:#198754; color:white; }
+.btn-excel { background:#0dcaf0; }
+.btn-pdf { background:#dc3545; color:white; }
+
+.actions { margin-top:15px; display:flex; gap:10px; flex-wrap:wrap; }
+
+.summary { margin-top:10px; font-weight:bold; }
+
+@media(max-width:768px){
+  th,td { font-size:12px; }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Saurav's Karkhana</h1>
+  <p>Labour Attendance & Wage System</p>
+</header>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="active" onclick="openTab('users',this)">Users</button>
+  <button onclick="openTab('attendance',this)">Attendance</button>
+  <button onclick="openTab('reports',this)">Reports</button>
+</div>
+
+<!-- USER MANAGEMENT -->
+<div id="users" class="container active">
+  <h2>User Management</h2>
+  <input type="text" id="userName" placeholder="Labour Name">
+  <button class="btn-add" onclick="addUser()">Add</button>
+
+  <table>
+    <thead><tr><th>#</th><th>Name</th><th>Action</th></tr></thead>
+    <tbody id="userTable"></tbody>
+  </table>
+</div>
+
+<!-- ATTENDANCE -->
+<div id="attendance" class="container">
+  <h2>Attendance — <input type="date" id="attendanceDate"></h2>
+
+  <table id="attendanceTable">
+    <thead>
+      <tr><th>Name</th><th>Work</th><th>Hours</th><th>Wage</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div class="summary">Total: ₹ <span id="totalWage">0</span></div>
+
+  <div class="actions">
+    <button class="btn-save" onclick="submitAttendance()">Submit Attendance</button>
+  </div>
+</div>
+
+<!-- REPORTS -->
+<div id="reports" class="container">
+  <h2>Reports</h2>
+
+  From: <input type="date" id="fromDate">
+  To: <input type="date" id="toDate">
+
+  <div class="actions">
+    <button class="btn-excel" onclick="downloadExcel()">Download Excel</button>
+    <button class="btn-pdf" onclick="downloadPDF()">Download PDF</button>
+  </div>
+</div>
+
+<script>
+const workRates={
+ "":0,"1st Kiln":400,"2nd Kiln":400,"Laari":400,
+ "3rd Slab Kiln":400,"4th Slab Kiln":400,
+ "5th Slab Feeding":333,"6th DC Feeding":400,
+ "7th Slab Feeding":350,"8th DC Feeding":400
+};
+
+let users=JSON.parse(localStorage.getItem("users"))||[
+ {id:1,name:"Ramesh"},{id:2,name:"Suresh"}
+];
+
+let attendanceData=JSON.parse(localStorage.getItem("attendance"))||[];
+
+attendanceDate.value=new Date().toISOString().split("T")[0];
+
+function openTab(id,btn){
+ document.querySelectorAll(".container").forEach(c=>c.classList.remove("active"));
+ document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active"));
+ document.getElementById(id).classList.add("active");
+ btn.classList.add("active");
+}
+
+// USERS
+function renderUsers(){
+ userTable.innerHTML="";
+ users.forEach((u,i)=>{
+  userTable.innerHTML+=`
+  <tr>
+   <td>${i+1}</td>
+   <td>${u.name}</td>
+   <td>
+    <button class="btn-edit" onclick="editUser(${u.id})">Edit</button>
+    <button class="btn-delete" onclick="deleteUser(${u.id})">Delete</button>
+   </td>
+  </tr>`;
+ });
+ renderAttendance();
+}
+
+function addUser(){
+ if(!userName.value) return;
+ users.push({id:Date.now(),name:userName.value});
+ userName.value="";
+ saveUsers();
+}
+function editUser(id){
+ const u=users.find(x=>x.id===id);
+ const n=prompt("Edit name",u.name);
+ if(n){u.name=n;saveUsers();}
+}
+function deleteUser(id){
+ if(confirm("Delete?")){
+  users=users.filter(u=>u.id!==id);
+  saveUsers();
+ }
+}
+function saveUsers(){
+ localStorage.setItem("users",JSON.stringify(users));
+ renderUsers();
+}
+
+// ATTENDANCE
+function renderAttendance(){
+ attendanceTable.querySelector("tbody").innerHTML="";
+ users.forEach(u=>{
+  attendanceTable.querySelector("tbody").innerHTML+=`
+  <tr>
+   <td>${u.name}</td>
+   <td><select onchange="calc(this)">
+    ${Object.keys(workRates).map(w=>`<option>${w}</option>`).join("")}
+   </select></td>
+   <td><select onchange="calc(this)">
+    ${Array.from({length:24},(_,i)=>`<option>${i+1}</option>`).join("")}
+   </select></td>
+   <td class="wage">0</td>
+  </tr>`;
+ });
+}
+
+function calc(el){
+ const r=el.closest("tr");
+ const w=r.children[1].children[0].value;
+ const h=r.children[2].children[0].value;
+ r.querySelector(".wage").innerText=(workRates[w]||0)*h;
+ total();
+}
+function total(){
+ let t=0;
+ document.querySelectorAll(".wage").forEach(w=>t+=+w.innerText);
+ totalWage.innerText=t;
+}
+
+function submitAttendance(){
+ const d=attendanceDate.value;
+ const data=[];
+ document.querySelectorAll("#attendanceTable tbody tr").forEach(r=>{
+  data.push({
+   name:r.children[0].innerText,
+   work:r.children[1].children[0].value,
+   hours:r.children[2].children[0].value,
+   wage:r.children[3].innerText
+  });
+ });
+ const rec={company:"Saurav's Karkhana",date:d,data};
+ const i=attendanceData.findIndex(a=>a.date===d);
+ i>=0?attendanceData[i]=rec:attendanceData.push(rec);
+ localStorage.setItem("attendance",JSON.stringify(attendanceData));
+ clearForm();
+ alert("Saved for "+d);
+}
+
+function clearForm(){
+ document.querySelectorAll("#attendanceTable select").forEach(s=>s.selectedIndex=0);
+ document.querySelectorAll(".wage").forEach(w=>w.innerText="0");
+ totalWage.innerText="0";
+}
+
+// REPORTS
+function getReportData(){
+ const f=fromDate.value,t=toDate.value;
+ return attendanceData.filter(a=>(!f||a.date>=f)&&(!t||a.date<=t));
+}
+
+function downloadExcel(){
+ const rows=[["Date","Name","Work","Hours","Wage"]];
+ getReportData().forEach(r=>{
+  r.data.forEach(d=>{
+   rows.push([r.date,d.name,d.work,d.hours,d.wage]);
+  });
+ });
+ const wb=XLSX.utils.book_new();
+ XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"Report");
+ XLSX.writeFile(wb,"Sauravs_Karkhana_Report.xlsx");
+}
+
+function downloadPDF(){
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Sort data by date (ascending)
+    const sortedData = getReportData().sort(
+        (a, b) => new Date(a.date) - new Date(b.date)
+    );
+
+    doc.setFontSize(14);
+    doc.text("Saurav's Karkhana", 14, 15);
+    doc.setFontSize(10);
+    doc.text("Attendance Report", 14, 22);
+
+    let y = 30;
+
+    sortedData.forEach(record => {
+        // Date heading
+        doc.setFontSize(11);
+        doc.text(`Date: ${record.date}`, 14, y);
+        y += 5;
+
+        const rows = record.data.map(d => [
+            d.name,
+            d.work,
+            d.hours,
+            d.wage
+        ]);
+
+        doc.autoTable({
+            head: [["Name", "Work", "Hours", "Wage (₹)"]],
+            body: rows,
+            startY: y,
+            theme: "grid",
+            styles: { fontSize: 9 }
+        });
+
+        y = doc.lastAutoTable.finalY + 10;
+
+        // New page if space is low
+        if (y > 260) {
+            doc.addPage();
+            y = 20;
+        }
+    });
+
+    doc.save("Sauravs_Karkhana_Attendance_Report.pdf");
+}
+renderUsers();
+</script>
+
+</body>
+</html>
