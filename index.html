@@ -33,6 +33,9 @@ button{border:none;border-radius:4px;cursor:pointer}
 <body>
 
 <header>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <h1>Exxaro tiles</h1>
 <p>Labour Attendance & Wage System</p>
 </header>
@@ -81,6 +84,13 @@ To <input type="date" id="toDate">
 </div>
 
 <script>
+  window.addEventListener('load', () => {
+  console.log("Users in storage:", localStorage.getItem("users"));
+  console.log("Attendance in storage:", localStorage.getItem("attendance"));
+  if (!localStorage.getItem("users")) {
+    alert("Warning: localStorage is empty or blocked!");
+  }
+});
 // ---------------- TABS ----------------
 function openTab(id,btn){
  document.querySelectorAll('.container').forEach(c=>c.classList.remove('active'));
