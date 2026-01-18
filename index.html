@@ -199,16 +199,36 @@ function calcPerson(el){
  calcRowTotal(el.closest("tr"));
 }
 
+// function calcRowTotal(row){
+//  let total=0;
+//  row.querySelectorAll(".work-box div").forEach(d=>{
+//   const sub=d.children[1], hrs=d.children[2];
+//   if(!sub.value||!hrs.value) return;
+//   total += sub.selectedOptions[0].dataset.rate * hrs.value;
+//  });
+//  row.querySelector(".wage").innerText=total;
+//  calcDay();
+// }
+
 function calcRowTotal(row){
- let total=0;
+ let total = 0;
+
  row.querySelectorAll(".work-box div").forEach(d=>{
-  const sub=d.children[1], hrs=d.children[2];
-  if(!sub.value||!hrs.value) return;
-  total += sub.selectedOptions[0].dataset.rate * hrs.value;
+  const sub = d.children[1];
+  const hrs = d.children[2];
+  if(!sub.value || !hrs.value) return;
+
+  const rate = +sub.selectedOptions[0].dataset.rate;
+  const hours = +hrs.value;
+
+  const hajri = hours / 6;
+  total += hajri * rate;
  });
- row.querySelector(".wage").innerText=total;
+
+ row.querySelector(".wage").innerText = Math.round(total);
  calcDay();
 }
+
 
 function calcDay(){
  let t=0;
@@ -227,13 +247,21 @@ function submitAttendance(){
    const sub=d.children[1], hrs=d.children[2];
    if(!sub.value||!hrs.value) return;
    const main = d.children[0];
+  //  works.push({
+  //   main: main.value, 
+  //   work:sub.value,
+  //   hours:+hrs.value,
+  //   rate:+sub.selectedOptions[0].dataset.rate,
+  //   wage:+hrs.value * +sub.selectedOptions[0].dataset.rate
+  //  });
    works.push({
-    main: main.value, 
-    work:sub.value,
-    hours:+hrs.value,
-    rate:+sub.selectedOptions[0].dataset.rate,
-    wage:+hrs.value * +sub.selectedOptions[0].dataset.rate
-   });
+    main: main.value,
+    work: sub.value,
+    hours: +hrs.value,
+    rate: +sub.selectedOptions[0].dataset.rate,
+    hajri: hajri,
+    wage: wage
+  });
   });
   if(works.length) data.push({name:r.children[0].innerText,works});
  });
