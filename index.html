@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Exxaro tiles | Attendance System</title>
+<title>Exxaro Tiles | Attendance System</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -23,26 +23,24 @@ th{background:#0d6efd;color:#fff}
 input,select,button{padding:6px}
 button{border:none;border-radius:4px;cursor:pointer}
 .btn-add{background:#198754;color:#fff}
-.btn-save{background:#198754;color:#fff}
-.actions{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}
+.btn-save{background:#198754;color:#fff;margin-top:10px}
 .work-box div{display:flex;gap:6px;margin-bottom:6px}
 .summary{font-weight:bold;margin-top:10px}
+hr{margin:20px 0}
 </style>
 </head>
 
 <body>
 
 <header>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<h1>Exxaro tiles</h1>
+<h1>Exxaro Tiles</h1>
 <p>Labour Attendance & Wage System</p>
 </header>
 
 <div class="tabs">
 <button class="active" onclick="openTab('users',this)">Users</button>
 <button onclick="openTab('attendance',this)">Attendance</button>
+<button onclick="openTab('works',this)">Work Management</button>
 <button onclick="openTab('reports',this)">Reports</button>
 </div>
 
@@ -60,16 +58,34 @@ button{border:none;border-radius:4px;cursor:pointer}
 <!-- ATTENDANCE -->
 <div id="attendance" class="container">
 <h2>Attendance — <input type="date" id="attendanceDate"></h2>
-
 <table id="attendanceTable">
-<thead>
-<tr><th>Name</th><th>Work (Multiple)</th><th>Total Wage</th></tr>
-</thead>
+<thead><tr><th>Name</th><th>Work</th><th>Total Wage</th></tr></thead>
 <tbody></tbody>
 </table>
-
 <div class="summary">Day Total: ₹ <span id="dayTotal">0</span></div>
 <button class="btn-save" onclick="submitAttendance()">Submit Attendance</button>
+</div>
+
+<!-- WORK MANAGEMENT -->
+<div id="works" class="container">
+<h2>Work Management</h2>
+
+<h3>Add Main Section</h3>
+<input id="mainName" placeholder="Main Section">
+<button onclick="addMain()">Add</button>
+
+<hr>
+
+<h3>Add Sub Work</h3>
+<select id="mainSelect"></select>
+<input id="subName" placeholder="Sub Work">
+<input id="rate" type="number" placeholder="Rate">
+<button onclick="addSub()">Add</button>
+
+<table>
+<thead><tr><th>Main</th><th>Work</th><th>Rate</th><th>Action</th></tr></thead>
+<tbody id="workTable"></tbody>
+</table>
 </div>
 
 <!-- REPORTS -->
@@ -77,21 +93,13 @@ button{border:none;border-radius:4px;cursor:pointer}
 <h2>Reports</h2>
 From <input type="date" id="fromDate">
 To <input type="date" id="toDate">
-<div class="actions">
+<br><br>
 <button onclick="downloadExcel()">Download Excel</button>
 <button onclick="downloadPDF()">Download PDF</button>
 </div>
-</div>
 
 <script>
-  window.addEventListener('load', () => {
-  console.log("Users in storage:", localStorage.getItem("users"));
-  console.log("Attendance in storage:", localStorage.getItem("attendance"));
-  if (!localStorage.getItem("users")) {
-    alert("Warning: localStorage is empty or blocked!");
-  }
-});
-// ---------------- TABS ----------------
+/* ---------------- TABS ---------------- */
 function openTab(id,btn){
  document.querySelectorAll('.container').forEach(c=>c.classList.remove('active'));
  document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
@@ -99,146 +107,116 @@ function openTab(id,btn){
  btn.classList.add('active');
 }
 
-// ---------------- DATA ----------------
+/* ---------------- STORAGE ---------------- */
 let users = JSON.parse(localStorage.getItem("users")) || [];
 let attendanceData = JSON.parse(localStorage.getItem("attendance")) || [];
 
-// ✅ FINAL MAIN → SUB WORK STRUCTURE
-const workStructure = {
- "SLAB KILN": [
-   { name:"SLAB KILN", rate:450 },
-   { name:"SLAB LARI", rate:400 }
- ],
- "SLAB FEEDING": [
-   { name:"SLAB FEEDING", rate:333 },
-   { name:"FEEDING LAARI", rate:400 }
- ],
- "DC KILN": [
-   { name:"DC KILN", rate:450 },
-   { name:"DC LARI", rate:400 }
- ],
- "DC FEEDING": [
-   { name:"DC FEEDING", rate:450 },
-   { name:"DC LAARI", rate:400 }
- ],
- "CLEANER": [
-   { name:"SLAB CLEANING", rate:250 },
-   { name:"DC CLEANING", rate:250 }
- ]
+/* ---------------- WORK STRUCTURE ---------------- */
+const defaultWorkStructure = {
+ "SLAB KILN":[{name:"SLAB KILN",rate:450},{name:"SLAB LARI",rate:400}],
+ "SLAB FEEDING":[{name:"SLAB FEEDING",rate:333},{name:"FEEDING LAARI",rate:400}],
+ "DC KILN":[{name:"DC KILN",rate:450},{name:"DC LARI",rate:400}],
+ "DC FEEDING":[{name:"DC FEEDING",rate:450},{name:"DC LAARI",rate:400}],
+ "CLEANER":[{name:"SLAB CLEANING",rate:250},{name:"DC CLEANING",rate:250}]
 };
 
-attendanceDate.value = new Date().toISOString().split("T")[0];
+let workStructure = JSON.parse(localStorage.getItem("workStructure")) 
+ || structuredClone(defaultWorkStructure);
 
-// ---------------- USERS ----------------
+function saveWorkStructure(){
+ localStorage.setItem("workStructure",JSON.stringify(workStructure));
+}
+
+/* ---------------- USERS ---------------- */
 function renderUsers(){
  userTable.innerHTML="";
  users.forEach((u,i)=>{
-  userTable.innerHTML += `<tr><td>${i+1}</td><td>${u.name}</td></tr>`;
+  userTable.innerHTML+=`<tr><td>${i+1}</td><td>${u.name}</td></tr>`;
  });
  renderAttendance();
 }
 function addUser(){
  if(!userName.value) return;
  users.push({id:Date.now(),name:userName.value});
- userName.value="";
  localStorage.setItem("users",JSON.stringify(users));
+ userName.value="";
  renderUsers();
 }
 
-// ---------------- ATTENDANCE ----------------
+/* ---------------- ATTENDANCE ---------------- */
+attendanceDate.value=new Date().toISOString().split("T")[0];
+
 function renderAttendance(){
- const tb = attendanceTable.querySelector("tbody");
+ const tb=attendanceTable.querySelector("tbody");
  tb.innerHTML="";
  users.forEach(u=>{
-  tb.innerHTML += `
-   <tr>
-    <td>${u.name}</td>
-    <td>
-      <div class="work-box"></div>
-      <button onclick="addWorkRow(this)">+ Add Work</button>
-    </td>
-    <td class="wage">0</td>
-   </tr>`;
+  tb.innerHTML+=`
+  <tr>
+   <td>${u.name}</td>
+   <td>
+    <div class="work-box"></div>
+    <button onclick="addWorkRow(this)">+ Add Work</button>
+   </td>
+   <td class="wage">0</td>
+  </tr>`;
  });
 }
 
 function addWorkRow(btn){
  const box = btn.previousElementSibling;
- const div = document.createElement("div");
+ const d = document.createElement("div");
 
- div.innerHTML = `
-  <select onchange="loadSubWorks(this)">
-    <option selected disabled>Main Section</option>
+ const allowedHours = [1,2,3,4,6,8,9,12,15,18,24];
+
+ d.innerHTML = `
+  <select onchange="loadSub(this)">
+    <option disabled selected>Main</option>
     ${Object.keys(workStructure).map(m=>`<option>${m}</option>`).join("")}
   </select>
 
-  <select onchange="calcPerson(this)">
-    <option selected disabled>Sub Section</option>
+  <select onchange="calcRow(this)">
+    <option disabled selected>Work</option>
   </select>
 
-  <select onchange="calcPerson(this)">
-    <option selected disabled>Hours</option>
-    ${Array.from({length:24},(_,i)=>`<option>${i+1}</option>`).join("")}
+  <select onchange="calcRow(this)">
+    <option disabled selected>Hours</option>
+    ${allowedHours.map(h=>`<option value="${h}">${h}</option>`).join("")}
   </select>
 
-  <button onclick="removeWorkRow(this)">❌</button>
+  <button onclick="removeWork(this)">❌</button>
  `;
- box.appendChild(div);
+ box.appendChild(d);
 }
 
-function loadSubWorks(mainSelect){
- const sub = mainSelect.nextElementSibling;
- sub.innerHTML = `<option selected disabled>Sub Section</option>`;
 
- workStructure[mainSelect.value].forEach(w=>{
-  const o=document.createElement("option");
-  o.value=w.name;
-  o.textContent=w.name;
-  o.dataset.rate=w.rate;
-  sub.appendChild(o);
+function loadSub(el){
+ const sub=el.nextElementSibling;
+ sub.innerHTML=`<option disabled selected>Work</option>`;
+ workStructure[el.value].forEach(w=>{
+  sub.innerHTML+=`<option data-rate="${w.rate}">${w.name}</option>`;
  });
 }
 
-function removeWorkRow(btn){
- const row = btn.closest("tr");
+function removeWork(btn){
+ const row=btn.closest("tr");
  btn.parentElement.remove();
- calcRowTotal(row);
+ calcTotal(row);
 }
 
-function calcPerson(el){
- calcRowTotal(el.closest("tr"));
+function calcRow(el){
+ calcTotal(el.closest("tr"));
 }
 
-// function calcRowTotal(row){
-//  let total=0;
-//  row.querySelectorAll(".work-box div").forEach(d=>{
-//   const sub=d.children[1], hrs=d.children[2];
-//   if(!sub.value||!hrs.value) return;
-//   total += sub.selectedOptions[0].dataset.rate * hrs.value;
-//  });
-//  row.querySelector(".wage").innerText=total;
-//  calcDay();
-// }
-
-function calcRowTotal(row){
- let total = 0;
-
+function calcTotal(row){
+ let total=0;
  row.querySelectorAll(".work-box div").forEach(d=>{
-  const sub = d.children[1];
-  const hrs = d.children[2];
-  if(!sub.value || !hrs.value) return;
-
-  const rate = +sub.selectedOptions[0].dataset.rate;
-  const hours = +hrs.value;
-
-  const hajri = hours / 6;
-  total += hajri * rate;
+  const w=d.children[1],h=d.children[2];
+  if(!w.value||!h.value) return;
+  total+=(h.value/6)*(+w.selectedOptions[0].dataset.rate);
  });
-
- row.querySelector(".wage").innerText = Math.round(total);
+ row.querySelector(".wage").innerText=Math.round(total);
  calcDay();
 }
-
 
 function calcDay(){
  let t=0;
@@ -246,43 +224,61 @@ function calcDay(){
  dayTotal.innerText=t;
 }
 
-// ---------------- SUBMIT ----------------
+/* ---------------- SUBMIT ---------------- */
 function submitAttendance(){
  const date=attendanceDate.value;
  const data=[];
-
  document.querySelectorAll("#attendanceTable tbody tr").forEach(r=>{
   const works=[];
   r.querySelectorAll(".work-box div").forEach(d=>{
-   const sub=d.children[1], hrs=d.children[2];
-   if(!sub.value||!hrs.value) return;
-   const main = d.children[0];
-  //  works.push({
-  //   main: main.value, 
-  //   work:sub.value,
-  //   hours:+hrs.value,
-  //   rate:+sub.selectedOptions[0].dataset.rate,
-  //   wage:+hrs.value * +sub.selectedOptions[0].dataset.rate
-  //  });
+   const m=d.children[0],w=d.children[1],h=d.children[2];
+   if(!w.value||!h.value) return;
+   const hajri=h.value/6;
+   const wage=Math.round(hajri*(+w.selectedOptions[0].dataset.rate));
    works.push({
-    main: main.value,
-    work: sub.value,
-    hours: +hrs.value,
-    rate: +sub.selectedOptions[0].dataset.rate,
-    hajri: hajri,
-    wage: wage
+    main:m.value,work:w.value,hours:+h.value,
+    rate:+w.selectedOptions[0].dataset.rate,hajri,wage
+   });
   });
-  });
-  if(works.length) data.push({name:r.children[0].innerText,works});
+  if(works.length)data.push({name:r.children[0].innerText,works});
  });
-
  const rec={date,data};
  const i=attendanceData.findIndex(a=>a.date===date);
  i>=0?attendanceData[i]=rec:attendanceData.push(rec);
  localStorage.setItem("attendance",JSON.stringify(attendanceData));
- renderAttendance();
- dayTotal.innerText=0;
- alert("Saved");
+ renderAttendance();dayTotal.innerText=0;
+ alert("Saved ✅");
+}
+
+/* ---------------- WORK MANAGEMENT ---------------- */
+function renderWorkMgmt(){
+ mainSelect.innerHTML="";
+ workTable.innerHTML="";
+ Object.keys(workStructure).forEach(m=>{
+  mainSelect.innerHTML+=`<option>${m}</option>`;
+  workStructure[m].forEach(w=>{
+   workTable.innerHTML+=`
+   <tr>
+    <td>${m}</td><td>${w.name}</td><td>${w.rate}</td>
+    <td><button onclick="delWork('${m}','${w.name}')">Delete</button></td>
+   </tr>`;
+  });
+ });
+}
+function addMain(){
+ if(!mainName.value) return;
+ workStructure[mainName.value]=[];
+ saveWorkStructure();mainName.value="";
+ renderWorkMgmt();
+}
+function addSub(){
+ workStructure[mainSelect.value].push({name:subName.value,rate:+rate.value});
+ saveWorkStructure();subName.value="";rate.value="";
+ renderWorkMgmt();
+}
+function delWork(m,w){
+ workStructure[m]=workStructure[m].filter(x=>x.name!==w);
+ saveWorkStructure();renderWorkMgmt();
 }
 
 // ---------------- REPORT HELPERS ----------------
@@ -541,7 +537,10 @@ function downloadPDF(){
  doc.save("Exxaro_Tiles_Attendance_Report.pdf");
 }
 
+
+/* ---------------- INIT ---------------- */
 renderUsers();
+renderWorkMgmt();
 </script>
 
 </body>
